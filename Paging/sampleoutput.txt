@@ -1,0 +1,9 @@
+nats-mbp:Part 1 Nat$ g++ Paging.cpp -o run
+nats-mbp:Part 1 Nat$ ./run
+Reading from file: inputfile.txt
+Virtual address 49155 is in page 96 and offset 3. 
+Virtual address 9 is in page 0 and offset 9. 
+Virtual address 21 is in page 0 and offset 21. 
+Virtual address 43690 is in page 85 and offset 42. 
+Virtual address 41130 is in page 80 and offset 42. 
+Virtual address 3855 is in page 7 and offset 15. 
