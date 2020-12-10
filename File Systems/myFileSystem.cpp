@@ -3,19 +3,16 @@
 #include <bitset>
 #include <stdlib.h>
 #include <stdint.h>
-#include "inode.cpp"
 using namespace std;
-
-SuperBlock super;
 
 class myFileSystem
 {
 public:
   myFileSystem(string diskName)
   {
+    cout << "creating file system " << diskName << "\n";
     // Open the file with name diskName
-    ifstream myFile;
-    myFile.open(diskName);
+    
     // Read the first 1KB and parse it to structs/objecs representing the super block
     // 	An easy way to work with the 1KB memory chunk is to move a pointer to a
     //	position where a struct/object begins. You can use the sizeof operator to help
@@ -24,11 +21,11 @@ public:
     
     // Be sure to close the file in a destructor or otherwise before
     // the process exits.
-    myFile.close();
   }
   
   int create(char name[8], int32_t size)
-  { printf("creating");
+  { 
+    printf("creating file %s of size %i \n",name,size);
     
     //create a file with this name and this size
     // high level pseudo code for creating a new file
@@ -37,30 +34,6 @@ public:
     // representing inodes within the super block object.
     // If none exist, then return an error.
     // Also make sure that no other file in use with the same name exists.
-
-    int sameChar = 0;
-    int free = -1;
-    for (int i = 0; i < super.inodes.size(); i++){
-      inode *node = super.inodes[i];
-      for (int j = 0; j<8;j++){
-        if ((*node).name[j] == name[j])
-          sameChar++;
-      }
-      if (sameChar == 8){
-        printf("name exists");
-        return 0;
-      }
-      sameChar = 0;
-      if ((*node).used == 0){
-        free = i;
-        break;
-      }
-    }
-    
-    if (free == -1){
-      printf("no free nodes");
-      return 0;
-    }
     
     // Step 2: Look for a number of free blocks equal to the size variable
     // passed to this method. If not enough free blocks exist, then return an error.
@@ -69,25 +42,15 @@ public:
     // create the file. So mark the inode and blocks as used and update the rest of
     // the information in the inode.
     
-    inode *node = super.inodes[free];
-    node -> used = 1;
-    for (int i = 0; i < 8; i++){
-      node ->name[i] = name[i];
-    }
-    node -> size = size;
-    
     // Step 4: Write the entire super block back to disk.
     //	An easy way to do this is to seek to the beginning of the disk
     //	and write the 1KB memory chunk.
-    
-    
-    
     return 0;
   } // End Create
   
   int deletee(char name[8]){
     
-    printf("deleting");
+    printf("deleting file %s \n", name);
     
     // Delete the file with this name
     
@@ -109,7 +72,7 @@ public:
   int ls(void)
   { 
     
-    printf("ls-ing");
+    printf("Listing all files on disk \n");
     
     // List names of all files on disk
     
@@ -119,7 +82,7 @@ public:
   
   int read(char name[8], int32_t blockNum, char buf[1024])
   {
-    printf("reading");
+    printf("reading file %s at block %i \n",name,blockNum);
     
     // read this block from this file
     // Return an error if and when appropriate. For instance, make sure
@@ -135,7 +98,7 @@ public:
   
   int write(char name[8], int32_t blockNum, char buf[1024])
   {
-    printf("writing");
+    printf("writing to file %s at block %i \n",name,blockNum);
     
     // write this block to this file
     // Return an error if and when appropriate.
