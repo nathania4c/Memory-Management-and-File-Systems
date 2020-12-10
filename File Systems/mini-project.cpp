@@ -6,21 +6,61 @@
 #include "lab3.cpp"
 using namespace std;
 
-int main(int argc, char *argv[]){
+//Disk layout in bytes
+const uint BLOCK_SIZE = 1024;
+const uint DISK_SIZE = 128 * BLOCK_SIZE; 
+uint free_block_list = 127;
 
-  uint block = 1000; //1 block is 1 KB
-  uint fileSystemSize = 128 * block; //size of the file system
-  int files = 0; //will keep track of file sin file systems
+myFileSystem *fs;
+
+int main(int argc, char *argv[]){
   
   char command;
-  char name[8]; //file name
-  int32_t size; // file size (in number of blocks)
-  int32_t blockPointers[8]; // direct block pointers
-  int32_t used; // 0 => inode is free; 1 => in use
-  string diskname[1];
+  string diskname;
+  string line;
+  string word;
+  string name;
+  int32_t size;
   
-  
-  
+  ifstream myFile;
+  myFile.open("lab3input.txt");
+  if (myFile.is_open()) //if the file exists
+  {
+    printf("here");
+    getline(myFile,diskname);
+    myFileSystem myFS = myFileSystem(diskname);
+    fs = &myFS;
+    
+    while (getline(myFile,line)){
+      istringstream ss(line);
+      ss >>word;
+      command = word[0];
+      if (command == 'L'){
+        fs ->ls();
+      } else {
+        ss >> name;
+        ss >> word;
+        size = stoi(word);
+        
+        char n[8];
+        strcpy(n,name.c_str());
+        char dummy[1024];
+        
+        if (command == 'C'){
+          fs ->create(n,size);
+        }
+        if (command == 'W'){
+          fs ->write(n,size,dummy);
+        }
+        if (command == 'D'){
+          fs ->deletee(n);
+        }
+        if (command == 'R'){
+          fs ->read(n,size,dummy);
+        }
+      }
+    }
+  }
   
 return 0;
 }
