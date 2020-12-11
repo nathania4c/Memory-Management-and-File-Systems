@@ -3,10 +3,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <stdlib.h>
+#include <fstream>
+#include <iostream>
 
 using namespace std;
 
