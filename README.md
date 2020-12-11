@@ -12,4 +12,5 @@ The program will process each memory address and print the page number and offse
 ## File Systems
 ### How to run
 To run the create_fs file, type 'g++ lab3.create_fs.cpp -o create_fs' then ' ./create_fs disk0'
-To run the file system algorithm, type 'g++ index.cpp -o run' then './run'
+
+Then, to run the program, type 'g++ index.cpp -o run' then './run'
