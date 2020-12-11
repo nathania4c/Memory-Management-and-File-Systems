@@ -15,8 +15,8 @@ public:
     cout << "creating file system object for " << diskName2 << "\n";
     
     //set attributes
-   diskName = "disk0";	
-   availableBlocks = 127;
+    diskName = "disk0";	//TODO: If diskName = diskName2 it becomes "disk0?" 
+    availableBlocks = 127;
    // Open the file with the name
    std::ifstream infile;
    infile.open(diskName, std::ios::in | std::ios::binary);
@@ -242,7 +242,7 @@ void write(char name[8], uint32_t blockNum, char buf[1024])
    		  //write to file
    			uint32_t* blocks = inodes[x].getBlock();
    			std::ofstream outfile;
-   			outfile.open(diskName, std::ios::out | std::ios::binary);
+   			outfile.open(diskName, fstream::app);
    			outfile.seekp(128+(blocks[(int)blockNum]*1024));
    			outfile.write(buf,1024);
    			return;
