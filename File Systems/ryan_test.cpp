@@ -1,23 +1,29 @@
 #include "inode.cpp"
 
-class myFileSystem
-{
-inode inodes[16];
-char freeBlocks[127];
-char chunk[1024];
-int availableBlocks;
-std::string diskName;
+class myFileSystem {
 public:
-  myFileSystem(std::string diskName2)
-{
-    cout << "creating file system " << diskName << "\n";
-   diskName = diskName2;	
-   // Open the file with name diskName
+  
+  inode inodes[16]; //array of inodes
+  char freeBlocks[127]; //keep track of which blocks are free
+  char chunk[1024]; //1 block?
+  int availableBlocks; //keep track of how many blocks are free
+  std::string diskName; //disk name
+  
+  //constructor
+  myFileSystem(std::string diskName2) {
+    
+    cout << "creating file system object for " << diskName2 << "\n";
+    
+    //set attributes
+   diskName = "disk0";	
+   availableBlocks = 127;
+   // Open the file with the name
    std::ifstream infile;
    infile.open(diskName, std::ios::in | std::ios::binary);
-   infile.read(chunk,1024);
-   int currentPointer = 128;
-   for (int x = 0; x<16;x++) //for 16 inodes
+   infile.read(chunk,sizeof(chunk)); //buffer, size of buffer
+   int currentPointer = 128; //block pointer location?
+   //for 16 inodes
+   for (int x = 0; x<16;x++) 
    {
    	char name[8]; 
    	for (int y = 0; y<8;y++)
@@ -25,6 +31,7 @@ public:
    		name[y] = chunk[currentPointer];
    		currentPointer++;
    	}
+   	//
    	inodes[x].setName(name);
    	uint32_t input = (chunk[currentPointer] << 24) | (chunk[currentPointer+1] << 16) | (chunk[currentPointer+2] << 8) | (chunk[currentPointer+3]);
    	currentPointer = currentPointer + 4;
@@ -43,7 +50,6 @@ public:
 	infile.close();
 }
 
-
 void create(char name[8], uint32_t size)
 { //create a file with this name and this size
 
@@ -55,35 +61,42 @@ void create(char name[8], uint32_t size)
   // representing inodes within the super block object.
   // If none exist, then return an error.
   // Also make sure that no other file in use with the same name exists.
+  
   int free = -1;
-  int isDup;
   for (int x = 0; x<16;x++)
   {
-  	if (inodes[x].getUsed() == 0)
+    //if file name already exists
+    std::string str1 (inodes[x].getName());
+    std::string str2 (name);
+    if (str1.compare(str2)==0)
+    {
+      std::cout << "DUPLICATE NAME\n";
+      return;
+    } 
+    //if inode is free
+    else if (inodes[x].getUsed() == 0)
   	{
+  	  //get the index
   		free = x;
-  	}
-  	else if (inodes[x].getName() == name)
-  	{
-  		isDup = 1;
-  		break;
+  	  break;
   	}
   }
-  if (isDup == 1)
-  {
-  	std::cout << "DUPLICATE NAME\n";
-  }
-  else if (free == -1)
+  //if no free inode
+  if (free == -1)
   {
   	std::cout << "MAX NUM OF FILES\n";
+    return;
   }
+  //if not enough available blocks
   else if (availableBlocks < size)
   {
   	std::cout << "NOT ENOUGH SPACE\n";
+    return;
   }
+  //if everything is ok
   else
   {
-  	int size2 = size;
+  	int s = size;
   	availableBlocks = availableBlocks-size;
   	inodes[free].setName(name);
   	inodes[free].setUsed(1);
@@ -94,18 +107,17 @@ void create(char name[8], uint32_t size)
   		if (freeBlocks[x] == '0')
   		{
   			inodes[free].setBlock(pointer,x);
-  			size2--;
+  			s--;
   			pointer++;
   			freeBlocks[x] = '1';
   		}
-  		if (size2 == 0)
+  		if (s == 0)
   		{
   			break;
   		}
   	}
   }
-  
-  std::ofstream fileOut(diskName,std::ios::out | std::ios::binary);
+  std::ofstream fileOut(diskName,fstream::app);
   fileOut.seekp(1);
   fileOut.write(freeBlocks,127);
   int pos = (48*free)+128;
@@ -114,23 +126,24 @@ void create(char name[8], uint32_t size)
   pos = pos+8;
   fileOut.write(reinterpret_cast<const char *>(&size), sizeof(size));
   pos = pos+4;
-  uint32_t* blocks = inodes[free].getBlock();
-  fileOut.write(reinterpret_cast<const char *>(&blocks), sizeof(blocks));
-  pos = pos+sizeof(blocks);
+  fileOut.write(reinterpret_cast<const char *>(inodes[free].getBlock()), sizeof(inodes[free].getBlock()));
+  pos = pos+sizeof(inodes[free].getBlock());
   uint32_t used = inodes[free].getUsed();
   fileOut.write(reinterpret_cast<const char *>(&used),(4));
 
 } // End Create
 
-
-
 void del(char name[8])
 {
-  printf("deleting file %s \n", name);
   // Delete the file with this name
+  printf("deleting file %s \n", name);
+  //search through files
   for(int x = 0;x<16;x++)
   {
-  	if (inodes[x].getName() == name)
+    //if name matches
+    std::string str1 (inodes[x].getName());
+    std::string str2 (name);
+    if (str1.compare(str2)==0)
   	{
   		char blankName[8];
   		inodes[x].setName(blankName);
@@ -146,34 +159,37 @@ void del(char name[8])
   		int pos = (48*x)+128;
   		std::ofstream fileOut;
   		fileOut.open(diskName, std::ios::out | std::ios::binary);
-		fileOut.seekp(pos);
-		fileOut.write(blankName,8);
-	 	pos = pos+8;
-	 	fileOut.write(reinterpret_cast<const char *>(&inodes[x]), 4);
-		pos = pos+4;
-		uint32_t *block = inodes[x].getBlock();
-		fileOut.write(reinterpret_cast<const char *>(&blocks), sizeof(blocks));
-		pos = pos+sizeof(blocks);
-		fileOut.write(reinterpret_cast<const char *>(&inodes[x]),4);
-  		break;
+  		fileOut.seekp(pos);
+  		fileOut.write(blankName,8);
+  	 	pos = pos+8;
+  	 	fileOut.write(reinterpret_cast<const char *>(&inodes[x]), 4);
+  		pos = pos+4;
+  		uint32_t *block = inodes[x].getBlock();
+  		fileOut.write(reinterpret_cast<const char *>(&blocks), sizeof(blocks));
+  		pos = pos+sizeof(blocks);
+  		fileOut.write(reinterpret_cast<const char *>(&inodes[x]),4);
+  		return;
   	}
-  	std::cout<<"FILE NOT FOUND\n";
   }
-  
+  //if file not found
+  std::cout<<"FILE NOT FOUND\n";
 
 } // End Delete
 
 
 void ls(void)
 { 
-  printf("Listing all files on disk \n");
   // List names of all files on disk
+  printf("Listing all files on disk \n");
+  //iterate through the inodes
   for (int x=0;x<16;x++)
   {
+    //if the inode is used
   	if(inodes[x].getUsed() == 1)
   	{
+  	  //print file name
   		std::string str (inodes[x].getName());
-  		str = str + "   " + std::to_string(inodes[x].getSize()) + "\n";
+  		str = str + std::to_string(inodes[x].getSize()) + "\n";
   		std::cout << str;
   	}
   }
@@ -185,25 +201,29 @@ void read(char name[8], uint32_t blockNum, char buf[1024])
   printf("reading file %s at block %i \n",name,blockNum);
    for (int x=0;x<16;x++)
    {
-   	if (inodes[x].getName() == name)
+      std::string str1 (inodes[x].getName());
+      std::string str2 (name);
+   	if (str1.compare(str2)==0)
    	{
-   		if (blockNum > inodes[x].getSize()-1)
+   		if (blockNum < inodes[x].getSize()-1)
    		{
    			uint32_t* blocks = inodes[x].getBlock();
    			std::ifstream infile;
    			infile.open(diskName, std::ios::in | std::ios::binary);
    			infile.seekg(128+((blocks[(int)blockNum]*1024)));
    			infile.read(buf,1024);
-   			break;
+   			return;
    		}
+   		//if block number bigger than size
    		else
    		{
    			std::cout << "BLOCK NUMBER GREATER THAN SIZE\n";
-   			break;
+   			return;
    		}
    	}
-   	std::cout << "FILE NOT FOUND";
    }
+   //if file not found
+   std::cout << "FILE NOT FOUND\n";
 
 } // End read
 
@@ -211,27 +231,32 @@ void read(char name[8], uint32_t blockNum, char buf[1024])
 void write(char name[8], uint32_t blockNum, char buf[1024])
 {
   printf("writing to file %s at block %i \n",name,blockNum);
-   for (int x=0;x<16;x++)
-   {
-   	if (inodes[x].getName() == name)
-   	{
-   		if (blockNum > inodes[x].getSize()-1)
-   		{
+  //search through files
+   for (int x=0;x<16;x++) {
+     //if file name matches
+     std::string str1 (inodes[x].getName());
+     std::string str2 (name);
+     if (str1.compare(str2)==0){
+   	  //if block number smaller than size
+   		if (blockNum < inodes[x].getSize()-1) {
+   		  //write to file
    			uint32_t* blocks = inodes[x].getBlock();
    			std::ofstream outfile;
    			outfile.open(diskName, std::ios::out | std::ios::binary);
    			outfile.seekp(128+(blocks[(int)blockNum]*1024));
    			outfile.write(buf,1024);
-   			break;
-   		}
-   		else
-   		{
+   			return;
+   		} 
+   		//if block number bigger than size
+   		else {
    			std::cout << "BLOCK NUMBER GREATER THAN SIZE\n";
-   			break;
+   			return;
    		}
    	}
-   	std::cout << "FILE NOT FOUND\n";
    }
+   //if file not found
+   std::cout << "FILE NOT FOUND\n";
    
 } // end write	
+  
 };

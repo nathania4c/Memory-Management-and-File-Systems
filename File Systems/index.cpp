@@ -6,11 +6,13 @@
 
 using namespace std;
 
-int availableBlocks;
+char readChar() {
+  char c = getchar();
+  while (getchar() != '\n');
+  return c;
+}
 
 int main(int argc, char *argv[]){
-
-  availableBlocks = 127;
   
   string line;
   string word;
@@ -27,6 +29,10 @@ int main(int argc, char *argv[]){
     myFileSystem fs = myFileSystem(line);
     
     while(getline(myFile,line)){
+      
+      printf("Press any key to continue: ");
+      readChar();
+      
       //parse each word
       istringstream ss(line);
       ss >> word;
