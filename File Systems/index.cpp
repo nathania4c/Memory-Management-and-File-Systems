@@ -3,10 +3,15 @@
 #include <iostream>
 #include <sstream>  
 #include "ryan_test.cpp"
+
 using namespace std;
+
+int availableBlocks;
 
 int main(int argc, char *argv[]){
 
+  availableBlocks = 127;
+  
   string line;
   string word;
   char command;
@@ -37,7 +42,7 @@ int main(int argc, char *argv[]){
       strcpy(name,word.c_str());
       //if D call delete
       if (command == 'D'){
-        fs.deletee(name);
+        fs.del(name);
         continue;
       }
       //if not D then get size

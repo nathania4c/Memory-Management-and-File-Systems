@@ -14,15 +14,16 @@ using namespace std;
 
 class inode
 {
-public:
   char name[8]; //file name
   uint32_t size;     // file size (in number of blocks)
   uint32_t blockPointers[8]; // direct block pointers
   uint32_t used;             // 0 => inode is free; 1 => in use
-  
-  void setName(int index,char input)
+public:
+  void setName(char input[8])
   {
-    name[index] = input;
+    string inputS = input;
+    strcpy(name,inputS.c_str());
+    //name = input;
   }
   
   void setSize(uint32_t input)
@@ -40,7 +41,7 @@ public:
     used = input;
   }
   
-  char * getName()
+  char* getName()
   {
     return name;
   }
@@ -50,7 +51,7 @@ public:
     return size;
   }
   
-  uint32_t * getBlock()
+  uint32_t* getBlock()
   {
     return blockPointers;
   }

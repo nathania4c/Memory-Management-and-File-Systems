@@ -1,74 +1,16 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <iostream>
+#include "inode.cpp"
 
-
-class inode
-{
-char name[8]; //file name
-uint32_t size;     // file size (in number of blocks)
-uint32_t blockPointers[8]; // direct block pointers
-uint32_t used;             // 0 => inode is free; 1 => in use
-public:
-	void setName(char input[8])
-	{
-		name = input;
-	}
-	
-	void setSize(uint32_t input)
-	{
-		size = input;
-	}
-	
-	void setBlock(int index, uint32_t input)
-	{
-		blockPointers[index] = input;
-	}
-	
-	void setUsed(uint32_t input)
-	{
-		used = input;
-	}
-	
-	char* getName()
-	{
-		return name;
-	}
-	
-	uint32_t getSize()
-	{
-		return size;
-	}
-	
-	uint32_t* getBlock()
-	{
-		return blockPointers;
-	}
-	
-	uint32_t getUsed()
-	{
-		return used;
-	}
-
-};
-
-class FileSystem
+class myFileSystem
 {
 inode inodes[16];
 char freeBlocks[127];
 char chunk[1024];
-int availableBlocks = 127;
+int availableBlocks;
 std::string diskName;
 public:
-void myFileSystem(std::string diskName2)
+  myFileSystem(std::string diskName2)
 {
+    cout << "creating file system " << diskName << "\n";
    diskName = diskName2;	
    // Open the file with name diskName
    std::ifstream infile;
@@ -105,6 +47,8 @@ void myFileSystem(std::string diskName2)
 void create(char name[8], uint32_t size)
 { //create a file with this name and this size
 
+  printf("creating file %s of size %i \n",name,size);
+  
   // high level pseudo code for creating a new file
 
   // Step 1: Look for a free inode by searching the collection of objects
@@ -152,7 +96,7 @@ void create(char name[8], uint32_t size)
   			inodes[free].setBlock(pointer,x);
   			size2--;
   			pointer++;
-  			freeBlocks[x] == '1';
+  			freeBlocks[x] = '1';
   		}
   		if (size2 == 0)
   		{
@@ -171,10 +115,10 @@ void create(char name[8], uint32_t size)
   fileOut.write(reinterpret_cast<const char *>(&size), sizeof(size));
   pos = pos+4;
   uint32_t* blocks = inodes[free].getBlock();
-  fileOut.write(reinterpret_cast<const char *>(&blocks, sizeof(blocks)));
+  fileOut.write(reinterpret_cast<const char *>(&blocks), sizeof(blocks));
   pos = pos+sizeof(blocks);
   uint32_t used = inodes[free].getUsed();
-  fileOut.write(reinterpret_cast<const char *>(&(used),4));
+  fileOut.write(reinterpret_cast<const char *>(&used),(4));
 
 } // End Create
 
@@ -182,6 +126,7 @@ void create(char name[8], uint32_t size)
 
 void del(char name[8])
 {
+  printf("deleting file %s \n", name);
   // Delete the file with this name
   for(int x = 0;x<16;x++)
   {
@@ -200,16 +145,16 @@ void del(char name[8])
   		inodes[x].setUsed(0);
   		int pos = (48*x)+128;
   		std::ofstream fileOut;
-  		fileOut.open(diskName, std::ios::out, std::ios::binary);
+  		fileOut.open(diskName, std::ios::out | std::ios::binary);
 		fileOut.seekp(pos);
 		fileOut.write(blankName,8);
 	 	pos = pos+8;
-	 	fileOut.write(reinterpret_cast<const char *>(&(inodes[x].getSize())), 4);
+	 	fileOut.write(reinterpret_cast<const char *>(&inodes[x]), 4);
 		pos = pos+4;
-		uint32_t blocks = inodes[x].getBlock();
+		uint32_t *block = inodes[x].getBlock();
 		fileOut.write(reinterpret_cast<const char *>(&blocks), sizeof(blocks));
 		pos = pos+sizeof(blocks);
-		fileOut.write(reinterpret_cast<const char *>(&(inodes[x].getUsed()),4));
+		fileOut.write(reinterpret_cast<const char *>(&inodes[x]),4);
   		break;
   	}
   	std::cout<<"FILE NOT FOUND\n";
@@ -221,13 +166,14 @@ void del(char name[8])
 
 void ls(void)
 { 
+  printf("Listing all files on disk \n");
   // List names of all files on disk
   for (int x=0;x<16;x++)
   {
   	if(inodes[x].getUsed() == 1)
   	{
   		std::string str (inodes[x].getName());
-  		str = str + "   " + std::to_string(inodes[x].getSize());
+  		str = str + "   " + std::to_string(inodes[x].getSize()) + "\n";
   		std::cout << str;
   	}
   }
@@ -236,6 +182,7 @@ void ls(void)
 
 void read(char name[8], uint32_t blockNum, char buf[1024])
 {
+  printf("reading file %s at block %i \n",name,blockNum);
    for (int x=0;x<16;x++)
    {
    	if (inodes[x].getName() == name)
@@ -263,7 +210,7 @@ void read(char name[8], uint32_t blockNum, char buf[1024])
 
 void write(char name[8], uint32_t blockNum, char buf[1024])
 {
-
+  printf("writing to file %s at block %i \n",name,blockNum);
    for (int x=0;x<16;x++)
    {
    	if (inodes[x].getName() == name)
@@ -288,49 +235,3 @@ void write(char name[8], uint32_t blockNum, char buf[1024])
    
 } // end write	
 };
-
-
-
-int main(int argc, char *argv[])
-{
-	FileSystem fs;
-	std::string line;
-	std::vector<std::string> result;
-	std::ifstream infile;
-	infile.open("lab3input.txt");
-	while(std::getline(infile, line))
-	{
-		std::istringstream iss(line);
-		for(std::string s; iss >> s;)
-		{
-			result.push_back(s);
-		}
-
-		if(result[1] == "C")
-		{
-			fs.create(result[1],result[2]);
-		}
-		if(result[1] == "D")
-		{
-			fs.del(result[1]);
-		}
-		if(result[1] == "ls")
-		{
-			fs.ls();
-		}
-		if(result[1] == "W")
-		{
-			fs.write(result[1],result[2]);
-		}
-		if(result[1] == "R")
-		{
-			fs.read(result[1],result[2]);
-		}
-		else
-		{
-			fs.myFileSystem(result[1]);
-		}
-	}
-	infile.close();
-	return 0;
-}
