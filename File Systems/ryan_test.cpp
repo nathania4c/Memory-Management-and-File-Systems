@@ -7,58 +7,9 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include "inode.cpp"
 
 using namespace std;
-
-class inode
-{
-public:
-  char name[8]; //file name
-  uint32_t size;     // file size (in number of blocks)
-  uint32_t blockPointers[8]; // direct block pointers
-  uint32_t used;             // 0 => inode is free; 1 => in use
-
-  void setName(int index,char input)
-  {
-    name[index] = input;
-  }
-  
-  void setSize(uint32_t input)
-  {
-    size = input;
-  }
-  
-  void setBlock(int index, uint32_t input)
-  {
-    blockPointers[index] = input;
-  }
-  
-  void setUsed(uint32_t input)
-  {
-    used = input;
-  }
-  
-  char * getName()
-  {
-    return name;
-  }
-  
-  uint32_t getSize()
-  {
-    return size;
-  }
-  
-  uint32_t * getBlock()
-  {
-    return blockPointers;
-  }
-  
-  uint32_t getUsed()
-  {
-    return used;
-  }
-  
-};
 
 class myFileSystem
 {
@@ -99,7 +50,9 @@ public:
   }
   
   int create(char name[8], int32_t size)
-  { //create a file with this name and this size
+  { 
+    printf("creating file %s of size %i \n",name,size);
+    //create a file with this name and this size
     
     // high level pseudo code for creating a new file
     
@@ -124,6 +77,7 @@ public:
   
   int deletee(char name[8])
   {
+    printf("deleting file %s \n", name);
     // Delete the file with this name
     
     // Step 1: Look for an inode that is in use with given name
@@ -142,6 +96,7 @@ public:
   
   int ls(void)
   { 
+    printf("Listing all files on disk \n");
     // List names of all files on disk
     
     // Step 1: Print the name and size fields of all used inodes.
@@ -150,7 +105,7 @@ public:
   
   int read(char name[8], int32_t blockNum, char buf[1024])
   {
-    
+    printf("reading file %s at block %i \n",name,blockNum);
     // read this block from this file
     // Return an error if and when appropriate. For instance, make sure
     // blockNum does not exceed size-1.
@@ -164,7 +119,7 @@ public:
   
   int write(char name[8], int32_t blockNum, char buf[1024])
   {
-    
+    printf("writing to file %s at block %i \n",name,blockNum);
     // write this block to this file
     // Return an error if and when appropriate.
     
