@@ -36,6 +36,20 @@ public:
     blockPointers[index] = input;
   }
   
+  void setBlockPointer(uint32_t input)
+  {
+    for(int i = 7; i >= 0;i--){
+      if(input-(pow(2,i)) > 0){
+        setBlock((i),1);
+        input = input - (pow(2,i));
+      }
+      else if(input-(pow(2,i)) == 0){
+        setBlock((i),1);
+        break;
+      }
+    }
+  }
+  
   void setUsed(uint32_t input)
   {
     used = input;
@@ -51,9 +65,32 @@ public:
     return size;
   }
   
+  char* getSizeBinary(){
+    static char result[8];
+    int s = size;
+    for(int i = 7; i >= 0;i--){
+      if(s-(pow(2,i)) >= 0){
+        result[i]='1';
+        s = s - (pow(2,i));
+      }
+      else {
+        result[i]='0';
+      }
+    }
+    return result;
+  }
+  
   uint32_t* getBlock()
   {
     return blockPointers;
+  }
+  uint32_t getBlockPointer()
+  {
+    uint32_t result = 0;
+    for (int i = 0; i < 8; i++){
+      result = result + pow(2*blockPointers[i],i);
+    }
+    return result;
   }
   
   uint32_t getUsed()
