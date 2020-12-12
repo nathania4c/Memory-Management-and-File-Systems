@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "inode.cpp"
 
 class myFileSystem {
@@ -5,55 +6,103 @@ public:
   
   inode inodes[16]; //array of inodes
   char freeBlocks[127]; //keep track of which blocks are free
-  char chunk[1024]; //1 block?
   int availableBlocks; //keep track of how many blocks are free
   std::string diskName; //disk name
   
   //constructor
-  myFileSystem(std::string diskName2) {
+  myFileSystem(string diskName2) {
+    
+    // Open the file with name diskName
+    
+    // Read the first 1KB and parse it to structs/objecs representing the super block
+    // 	An easy way to work with the 1KB memory chunk is to move a pointer to a
+    //	position where a struct/object begins. You can use the sizeof operator to help
+    //	cleanly determine the position. Next, cast the pointer to a pointer of the
+    //	struct/object type.
+    
+    // Be sure to close the file in a destructor or otherwise before
+    // the process exits.
     
     cout << "creating file system object for " << diskName2 << "\n";
     
     //set attributes
-    diskName = "disk0";	//TODO: If diskName = diskName2 it becomes "disk0?" 
+    diskName = "disk0";	
+    //TODO: If diskName = diskName2 it becomes "disk0?" 
+    //diskName = diskName2;
+    
+    //open file
+    std::ifstream infile;
+    infile.open(diskName, std::ios::in | std::ios::binary);
+    char chunk[1024]; //super block
+    infile.read(chunk,sizeof(chunk));
+    
     availableBlocks = 127;
-   // Open the file with the name
-   std::ifstream infile;
-   infile.open(diskName, std::ios::in | std::ios::binary);
-   infile.read(chunk,sizeof(chunk)); //buffer, size of buffer
-   int currentPointer = 128; //block pointer location?
-   //for 16 inodes
+    //initialize free blocks list with 0
+    for(int i = 0; i < sizeof(freeBlocks); i++){
+      freeBlocks[i] = '0';
+    }
+   
+   //initialize 16 inodes
    for (int x = 0; x<16;x++) 
    {
    	char name[8]; 
    	for (int y = 0; y<8;y++)
    	{
-   		name[y] = chunk[currentPointer];
-   		currentPointer++;
+   		name[y] = 'x';
+   	  inodes[x].setBlock(y,1);
    	}
-   	//
    	inodes[x].setName(name);
-   	uint32_t input = (chunk[currentPointer] << 24) | (chunk[currentPointer+1] << 16) | (chunk[currentPointer+2] << 8) | (chunk[currentPointer+3]);
-   	currentPointer = currentPointer + 4;
-   	inodes[x].setSize(input);
-   	uint32_t* blocks = inodes[x].getBlock();
-   	for (int y = 0;y<8;y++)
-   	{
-   		uint32_t blockVal = (chunk[currentPointer] << 24) | (chunk[currentPointer+1] << 16) | (chunk[currentPointer+2] << 8) | (chunk[currentPointer+3]);
-   		currentPointer = currentPointer + 4;
-   		blocks[y] = blockVal;
-   	}
-   	uint32_t used = (chunk[currentPointer] << 24) | (chunk[currentPointer+1] << 16) | (chunk[currentPointer+2] << 8) | (chunk[currentPointer+3]);
-   	currentPointer = currentPointer+4;
-   	inodes[x].setUsed(used);
+   	inodes[x].setUsed(0);
+   	inodes[x].setSize(0);
    }
-	infile.close();
+   
+   //add to chunk
+   
+    int pos = 1;
+    
+   //first add free block list
+   for (int i = 0; i < sizeof(freeBlocks);i++){
+     chunk[pos] = freeBlocks[i];
+     pos++;
+   }
+   
+   //next add inode attributes
+   for (int x = 0; x<16;x++) {
+     //name
+     for (int i = 0; i < sizeof(inodes[x].getName()); i++){
+       chunk[pos] = inodes[x].getName()[i];
+       pos++;
+     }
+     //block pointer
+     for (int i = 0; i<sizeof(inodes[x].getBlock()); i++){
+       char c = '0' + static_cast<char>(inodes[x].getBlock()[i]);
+        chunk[pos] = c;
+       pos++;
+     }
+     //used
+     char c = '0' + static_cast<char>(inodes[x].getUsed());
+     chunk[pos]= c;
+     pos++;
+     //size
+     c = '0' + static_cast<char>(inodes[x].getSize());
+     chunk[pos] = c;
+     pos++;
+   }
+   
+   //write to disk
+   std::ofstream outfile;
+   outfile.open(diskName, fstream::app | std::ios::binary);
+   outfile.seekp(1);
+    outfile.write(chunk, sizeof(chunk));
+   //close file
+	outfile.close();
 }
 
-void create(char name[8], uint32_t size)
+int create(char name[8], uint32_t size)
 { //create a file with this name and this size
 
   printf("creating file %s of size %i \n",name,size);
+  char chunk[1024];
   
   // high level pseudo code for creating a new file
 
@@ -61,6 +110,9 @@ void create(char name[8], uint32_t size)
   // representing inodes within the super block object.
   // If none exist, then return an error.
   // Also make sure that no other file in use with the same name exists.
+  
+  // Step 2: Look for a number of free blocks equal to the size variable
+  // passed to this method. If not enough free blocks exist, then return an error.
   
   int free = -1;
   for (int x = 0; x<16;x++)
@@ -71,7 +123,7 @@ void create(char name[8], uint32_t size)
     if (str1.compare(str2)==0)
     {
       std::cout << "DUPLICATE NAME\n";
-      return;
+      return 0;
     } 
     //if inode is free
     else if (inodes[x].getUsed() == 0)
@@ -85,22 +137,29 @@ void create(char name[8], uint32_t size)
   if (free == -1)
   {
   	std::cout << "MAX NUM OF FILES\n";
-    return;
+    return 0;
   }
   //if not enough available blocks
   else if (availableBlocks < size)
   {
   	std::cout << "NOT ENOUGH SPACE\n";
-    return;
+    return 0;
   }
-  //if everything is ok
+
+  // Step 3: Now we know we have an inode and free blocks necessary to
+  // create the file. So mark the inode and blocks as used and update the rest of
+  // the information in the inode.
+  
   else
   {
   	int s = size;
+    //update available blocks count
   	availableBlocks = availableBlocks-size;
+  	//set inode attributes
   	inodes[free].setName(name);
   	inodes[free].setUsed(1);
   	inodes[free].setSize(size);
+  	//update freeblocks
   	int pointer = 0;
   	for (int x = 1;x<128;x++)
   	{
@@ -117,9 +176,15 @@ void create(char name[8], uint32_t size)
   		}
   	}
   }
-  std::ofstream fileOut(diskName,fstream::app);
+
+  // Step 4: Write the entire super block back to disk.
+  //	An easy way to do this is to seek to the beginning of the disk
+  //	and write the 1KB memory chunk.
+  
+  std::ofstream fileOut(diskName,fstream::app | ofstream::binary);
   fileOut.seekp(1);
-  fileOut.write(freeBlocks,127);
+  for (int i = 0; i < size; i++)
+    fileOut.write(chunk,sizeof(chunk));
   int pos = (48*free)+128;
   fileOut.seekp(pos);
   fileOut.write(name,8);
@@ -130,6 +195,8 @@ void create(char name[8], uint32_t size)
   pos = pos+sizeof(inodes[free].getBlock());
   uint32_t used = inodes[free].getUsed();
   fileOut.write(reinterpret_cast<const char *>(&used),(4));
+  
+  return 0;
 
 } // End Create
 
