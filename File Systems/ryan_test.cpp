@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "inode.cpp"
 
 class myFileSystem {
@@ -12,17 +11,6 @@ public:
   
   //constructor
   myFileSystem(string diskName2) {
-    
-    // Open the file with name diskName
-    
-    // Read the first 1KB and parse it to structs/objecs representing the super block
-    // 	An easy way to work with the 1KB memory chunk is to move a pointer to a
-    //	position where a struct/object begins. You can use the sizeof operator to help
-    //	cleanly determine the position. Next, cast the pointer to a pointer of the
-    //	struct/object type.
-    
-    // Be sure to close the file in a destructor or otherwise before
-    // the process exits.
     
     cout << "creating file system object for " << diskName2 << "\n";
     
@@ -72,6 +60,7 @@ public:
      //add name
      for (int i = 0; i < sizeof(inodes[x].getName()); i++){
        superBlock[pos] = inodes[x].getName()[i];
+       //update pos
        pos++;
      }
      
@@ -80,18 +69,21 @@ public:
        //convert int to char
        char c = '0' + static_cast<char>(inodes[x].getBlock()[i]);
        superBlock[pos] = c;
+       //update pos
        pos++;
      }
      
      //add used
      char c = '0' + static_cast<char>(inodes[x].getUsed());
      superBlock[pos]= c;
+     //update pos
      pos++;
 
      //add size
      char * sizeBinary = inodes[x].getSizeBinary();
      for (int i = 0; i < 8;i++){
        superBlock[pos] = sizeBinary[i];
+       //update pos
        pos++;
      }
    }
@@ -107,8 +99,9 @@ public:
 }
   
   //this method is for updating the file after we change something
-  void writeToDisk(int x, char buf[1024]){
+void writeToDisk(int x, char buf[1024], uint32_t blockNum, uint32_t howManyBlocks){
     
+    //the inode
     inode dudu = inodes[x];
     
     //open file
@@ -117,24 +110,25 @@ public:
     //read super block
     infile.read(superBlock,sizeof(superBlock));
     
-    //only change the ones changed
-    int pos = 1; //pointer
+    //pointer
+    int pos = 1; 
     
     //first update free block list
-    pos = pos + dudu.getBlockPointer();
-    for (int i = 0; i < dudu.getSize(); i++){
-      superBlock[pos+i] = freeBlocks[i+1];
+    for (int i = 0; i < sizeof(freeBlocks); i++){
+      superBlock[pos+i] = freeBlocks[pos+i];
     }
     
+    //similar to when creating disk but here we only change the ones changed
     //next update inode attributes
-    pos = 1 + 127;
+    pos = pos+ 127;
     pos = pos + x*25;
     //TODO: should be adding by x*48?
     
     //update name
     for (int i = 0; i < 8;i++){
+      //if name less than 8, write x for the remaining space
       if(dudu.getName()[i]==0){
-        superBlock[pos]=' ';
+        superBlock[pos]='x';
       } else{
         superBlock[pos] = dudu.getName()[i];
       }
@@ -175,8 +169,11 @@ public:
     outfile.seekp(1);
     outfile.write(superBlock, sizeof(superBlock));
     
-    for(int i = 0; i<1024;i++){
-      buffer[x][i] = buf[i];
+    //update the data in block()s)
+    for (int j = 0; j < howManyBlocks; j++){
+      for(int i = 0; i<1024;i++){
+        buffer[dudu.getBlockPointer()+blockNum+j][i] = buf[i];
+      }
     }
     
     //write back all the blocks
@@ -192,19 +189,19 @@ public:
   }
 
 int create(char name[8], uint32_t size) { 
+  
   //create a file with this name and this size
   printf("creating file %s of size %i \n",name,size);
-  char chunk[1024];
-  
-  // high level pseudo code for creating a new file
 
   // Step 1: Look for a free inode by searching the collection of objects
   // representing inodes within the super block object.
   // If none exist, then return an error.
   // Also make sure that no other file in use with the same name exists.
-  
+  // +
   // Step 2: Look for a number of free blocks equal to the size variable
   // passed to this method. If not enough free blocks exist, then return an error.
+  
+  char chunk[1024];
   int free = -1;
   for (int x = 0; x<16;x++)
   {
@@ -241,7 +238,6 @@ int create(char name[8], uint32_t size) {
   // create the file. So mark the inode and blocks as used and update the rest of
   // the information in the inode.
   
-  int s = size;
   //update available blocks count
   availableBlocks = availableBlocks-size;
   //set inode attributes
@@ -250,18 +246,23 @@ int create(char name[8], uint32_t size) {
   inodes[free].setSize(size);
   //update free blocks list
   int index = 0;
+  int freeCount[size];
+  int s = size;
   for (int x = 1;x<128;x++)
   {
     //if block is free
     if (freeBlocks[x] == '0')
     {
-      if(index == 0){
-        //update block pointer
-        inodes[free].setBlockPointer(x);
-      }
+      //store in count
+      freeCount[index] = x;
       s--;
       index++;
-      freeBlocks[x] = '1';
+    }
+    //if the next one is 1 but s is not 0 yet
+    if(freeBlocks[x+1]=='1' && s!=0){
+      s = size;
+      index = 0;
+      continue;
     }
     //if done with all blocks
     if (s == 0)
@@ -269,6 +270,14 @@ int create(char name[8], uint32_t size) {
       break;
     }
   }
+  
+  //set start of block pointer
+  inodes[free].setBlockPointer(freeCount[0]);
+  
+  for (int i = 0; i < size; i++){
+    freeBlocks[freeCount[i]] = '1';
+  }
+  
   
   // Step 4: Write the entire super block back to disk.
   //	An easy way to do this is to seek to the beginning of the disk
@@ -279,54 +288,147 @@ int create(char name[8], uint32_t size) {
   for (int i = 0; i < sizeof(buf);i++){
     buf[i] = '*';
   }
+  writeToDisk(free,buf,0,size);
   
-  writeToDisk(free,buf);
   return 0;
 
 } // End Create
 
 int del(char name[8]) {
+  
   // Delete the file with this name
   printf("deleting file %s \n", name);
   inode dudu;
   int index = -1;
   
   //search through files
+  std::string str2 (name);
   for(int x = 0;x<16;x++) {
     //if name matches
     std::string str1 (inodes[x].getName());
-    std::string str2 (name);
     if (str1.compare(str2)==0) {
       dudu=inodes[x];
       index = x;
       break;
-    } else if (x+1==16){
-      //if file not found
-      std::cout<<"FILE NOT FOUND\n";
-      return 0;
     }
   }
+  if (index == -1){
+    //if file not found
+    std::cout<<"FILE NOT FOUND\n";
+    return 0;
+  }
   
+  //pointer
   int pos = 1 + dudu.getBlockPointer();
   
+  //update free blocks list
   for(int i = 0; i < dudu.getSize();i++){
     freeBlocks[pos+i] = '0';
   }
+  //update available blocks count
   availableBlocks = availableBlocks+dudu.getSize();
   
-  char blankName[8];
-  dudu.setName(blankName);
+  //save info
+  uint32_t size = dudu.getSize();
+  uint32_t bp = dudu.getBlockPointer();
+  
+  //reset inode info
+  dudu.resetName();
+  dudu.resetBlockPointer();
   dudu.setUsed(0);
   dudu.setSize(0);
-  dudu.setBlockPointer(0);
   
-  //marking the blocks for this file with space
+  //creating empty block data
   char buf[1024];
-  for (int i = 0; i < sizeof(buf);i++){
-    buf[i] = ' ';
+  
+  //open file
+  std::ifstream infile;
+  infile.open(diskName, std::ios::in | std::ios::binary);
+  //read super block
+  infile.read(superBlock,sizeof(superBlock));
+  
+  //basically the writeToDisk with minor changes
+  
+  pos = 1; //pointer
+  
+  //first update free block list
+  for (int i = 0; i < sizeof(freeBlocks); i++){
+    superBlock[pos+i] = freeBlocks[pos+i];
   }
   
-  writeToDisk(index, buf);
+  //only change the ones changed
+  //next update inode attributes
+  pos = pos+ 127;
+  pos = pos + index*25;
+  //TODO: should be adding by x*48?
+  
+  //update name
+  for (int i = 0; i < 8;i++){
+    //if name less than 8, write x for the remaining space
+    if(dudu.getName()[i]==0){
+      superBlock[pos]='x';
+    } else{
+      superBlock[pos] = dudu.getName()[i];
+    }
+    pos++;
+  }
+  
+  //update block pointer
+  for (int i = 0; i<sizeof(dudu.getBlock()); i++){
+    char c = '0' + static_cast<char>(dudu.getBlock()[i]);
+    superBlock[pos] = c;
+    pos++;
+  }
+  
+  //update used
+  char c = '0' + static_cast<char>(dudu.getUsed());
+  superBlock[pos]= c;
+  pos++;
+  
+  //update size
+  char * sizeBinary = dudu.getSizeBinary();
+  for (int i = 0; i < 8;i++){
+    superBlock[pos] = sizeBinary[i];
+    pos++;
+  }
+  
+  //read the rest of the file
+  char buffer[127][1024];
+  for(int i = 0; i < 127; i++){
+    infile.read(buffer[i],sizeof(buffer[i]));
+  } 
+  
+  //close the input stream
+  infile.close();
+  
+  //write to disk
+  std::ofstream outfile;
+  outfile.open(diskName, std::ios::binary);
+  outfile.seekp(1);
+  outfile.write(superBlock, sizeof(superBlock));
+  
+  //update block data
+  for (int j = 0; j < size; j++){
+    for(int i = 0; i<1024;i++){
+      buffer[bp+0+j][i] = buf[i];
+    }
+  }
+  
+  //write back all the blocks
+  pos = sizeof(superBlock)+1;
+  for(int i = 0; i<127;i++){
+    outfile.seekp(pos);
+    outfile.write(buffer[i], sizeof(buffer[i]));
+    pos = pos + 1024;
+  }
+  
+  //close file
+  outfile.close();
+  
+  //update inodes
+  for (int i = index;i<16;i++){
+    inodes[i] = inodes[i+1];
+  }
   
   return 0;
 
@@ -344,7 +446,7 @@ int ls(void) {
   	{
   	  //print file name
   		std::string str (inodes[x].getName());
-  		str = str + std::to_string(inodes[x].getSize()) + "\n";
+  		str = str + " "+std::to_string(inodes[x].getSize()) + "\n";
   		std::cout << str;
   	}
   }
@@ -355,29 +457,30 @@ int read(char name[8], uint32_t blockNum, char buf[1024]) {
   
   printf("reading file %s at block %i \n",name,blockNum);
   
+  std::string str2 (name);
   //search through inodes
    for (int x=0;x<16;x++)
    {
      //if name matches
       std::string str1 (inodes[x].getName());
-      std::string str2 (name);
    	if (str1.compare(str2)==0)
    	{
    	  //if block number bigger than size
-   		if (blockNum > inodes[x].getSize()){
+   		if (blockNum > inodes[x].getSize()-1){
    		  std::cout << "BLOCK NUMBER GREATER THAN SIZE\n";
    		  return 0;
    		} else {
+   		  //get inode
    		  inode dudu = inodes[x];
+   		  //open file
    			std::ifstream infile;
    			infile.open(diskName, std::ios::in | std::ios::binary);
-   			int pos = 1024*dudu.getBlockPointer();
-   			for (int i = 0; i < dudu.getSize();i++){
-   			  infile.seekg(pos);
-   			  infile.read(buf,1024);
-   			  printf("%s",buf);
-   			  pos = pos + 1024;
-   			}
+   			//set pointer
+   			int pos = 1024*(dudu.getBlockPointer()+blockNum);
+   			infile.seekg(pos);
+   			//read
+   			infile.read(buf,1024);
+   			//printf("%s \n",buf);
    			return 0;
    		}
    	}
@@ -389,19 +492,21 @@ int read(char name[8], uint32_t blockNum, char buf[1024]) {
 
 
 int write(char name[8], uint32_t blockNum, char buf[1024]) {
+  
   printf("writing to file %s at block %i \n",name,blockNum);
   
   //search through files
+  std::string str2 (name);
    for (int x=0;x<16;x++) {
      //if file name matches
      std::string str1 (inodes[x].getName());
-     std::string str2 (name);
      if (str1.compare(str2)==0){
-       if(blockNum > inodes[x].getSize()){
+       //if block number bigger than size of file
+       if(blockNum > inodes[x].getSize()-1){
          std::cout << "BLOCK NUMBER GREATER THAN SIZE\n";
          return 0;
        } else {
-         writeToDisk(x, buf);
+         writeToDisk(x, buf, blockNum,1);
          break;
        }
      }

@@ -6,6 +6,7 @@
 
 using namespace std;
 
+//got this from project 1
 char readChar() {
   char c = getchar();
   while (getchar() != '\n');
@@ -14,11 +15,13 @@ char readChar() {
 
 int main(int argc, char *argv[]){
   
-  string line;
-  string word;
-  char command;
-  char name[8];
-  int32_t size;
+  string line; //to read file
+  string word; //to parse line
+  char command; //ex. C,W,L
+  char name[8]; //name of file
+  int32_t size; //size of file
+  
+  //open file
   ifstream myFile;
   myFile.open("lab3input.txt");
   if (myFile.is_open()) //if the file exists
@@ -30,8 +33,12 @@ int main(int argc, char *argv[]){
     
     while(getline(myFile,line)){
       
-      printf("Press any key to continue: ");
-      readChar();
+      //to slow down process so we can see line by line
+      sleep(1);
+      
+      //to debug
+      //printf("Press any key to continue");
+      //readChar();
       
       //parse each word
       istringstream ss(line);
@@ -71,5 +78,6 @@ int main(int argc, char *argv[]){
       }
     }
   }
+  //close file
   myFile.close();
 }

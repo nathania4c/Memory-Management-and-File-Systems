@@ -14,16 +14,17 @@ using namespace std;
 
 class inode
 {
-  char name[8]; //file name
-  uint32_t size;     // file size (in number of blocks)
-  uint32_t blockPointers[8]; // direct block pointers
-  uint32_t used;             // 0 => inode is free; 1 => in use
 public:
+  char name[8]; //file name
+  uint32_t size; // file size (in number of blocks)
+  uint32_t blockPointers[8]; // direct block pointers
+  uint32_t used; // 0 => inode is free; 1 => in use
+
+  //setters
   void setName(char input[8])
   {
-    string inputS = input;
-    strcpy(name,inputS.c_str());
-    //name = input;
+    string inputString = input;
+    strcpy(name,inputString.c_str());
   }
   
   void setSize(uint32_t input)
@@ -31,12 +32,12 @@ public:
     size = input;
   }
   
-  void setBlock(int index, uint32_t input)
+  void setBlock(int index, uint32_t input) //this put binary to block pointer array
   {
     blockPointers[index] = input;
   }
   
-  void setBlockPointer(uint32_t input)
+  void setBlockPointer(uint32_t input) //this takes number and converts to binary
   {
     for(int i = 7; i >= 0;i--){
       if(input-(pow(2,i)) > 0){
@@ -55,6 +56,20 @@ public:
     used = input;
   }
   
+  //reset for when deleting
+  void resetBlockPointer(){
+    for (int i = 0; i < 8; i++){
+      setBlock(i,0);
+    }
+  }
+  
+  void resetName(){
+    for (int i = 0; i < 8;i++){
+      name[i]='x';
+    }
+  }
+  
+  //getters
   char* getName()
   {
     return name;
@@ -65,26 +80,33 @@ public:
     return size;
   }
   
-  char* getSizeBinary(){
+  char* getSizeBinary(){ //this converts size to binary and return char array
     static char result[8];
-    int s = size;
-    for(int i = 7; i >= 0;i--){
-      if(s-(pow(2,i)) >= 0){
-        result[i]='1';
-        s = s - (pow(2,i));
-      }
-      else {
+    if(size == 0){
+      for (int i = 0; i < 8; i++){
         result[i]='0';
+      }
+    } else {
+      int s = size;
+      for(int i = 7; i >= 0;i--){
+        if(s-(pow(2,i)) >= 0){
+          result[i]='1';
+          s = s - (pow(2,i));
+        }
+        else {
+          result[i]='0';
+        }
       }
     }
     return result;
   }
   
-  uint32_t* getBlock()
+  uint32_t* getBlock() //this return array pointer
   {
     return blockPointers;
   }
-  uint32_t getBlockPointer()
+  
+  uint32_t getBlockPointer() //this returns the base 10 number 
   {
     uint32_t result = 0;
     for (int i = 0; i < 8; i++){
